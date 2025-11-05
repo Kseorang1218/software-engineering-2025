@@ -1,0 +1,59 @@
+@startuml
+title "시퀀스 2: 실시간 데이터 모니터링 (UC-001 & NFR003)"
+
+' --- 참가자(Lifelines) 정의 ---
+participant "작업자 (액터)" as Operator
+participant "MonitoringDashboard"
+participant "ApiClient"
+participant "MonitoringController"
+participant "DataRepository"
+
+' === 작업자가 화면 조회 ===
+Operator -> MonitoringDashboard: 실시간 모니터링 화면 조회
+activate MonitoringDashboard
+
+' === 실시간 데이터 폴링 루프 ===
+loop "1초마다 화면 갱신 (NFR003)"
+    
+    ' --- 1. 데이터 요청 ---
+    MonitoringDashboard -> ApiClient: 실시간 데이터 요청 ()
+    activate ApiClient
+    ApiClient -> MonitoringController: getRealTimeData()
+    activate MonitoringController
+    
+    MonitoringController -> DataRepository: 최신 데이터 조회 ()
+    activate DataRepository
+    DataRepository --> MonitoringController: processedData
+    deactivate DataRepository
+    
+    MonitoringController --> ApiClient: processedData
+    deactivate MonitoringController
+    ApiClient --> MonitoringDashboard: processedData
+    deactivate ApiClient
+    
+    MonitoringDashboard -> MonitoringDashboard: 실시간 데이터 화면 표시 (processedData) [UC-001]
+    
+    ' --- 2. 활성 알림 요청 (병렬) ---
+    MonitoringDashboard -> ApiClient: 활성 알림 요청 ()
+    activate ApiClient
+    ApiClient -> MonitoringController: getActiveAlerts()
+    activate MonitoringController
+
+    MonitoringController -> DataRepository: 알림 이력 조회 ()
+    activate DataRepository
+    DataRepository --> MonitoringController: alertList
+    deactivate DataRepository
+    
+    MonitoringController --> ApiClient: alertList
+    deactivate MonitoringController
+    ApiClient --> MonitoringDashboard: alertList
+    deactivate ApiClient
+    
+    alt "표시할 새 알림이 있는 경우"
+        MonitoringDashboard -> MonitoringDashboard: 이상 의심 알림 표시 (alert)
+    end
+    
+end
+
+deactivate MonitoringDashboard
+@enduml

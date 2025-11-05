@@ -1,0 +1,52 @@
+@startuml
+title "시퀀스 1: 데이터 수신 및 이상 탐지 (UC-004 ~ UC-009)"
+
+' --- 참가자(Lifelines) 정의 ---
+participant "회전기계 (액터)" as Machinery
+participant "DataReceiver"
+participant "DataProcessor"
+participant "DataRepository"
+participant "AnomalyDetector"
+
+' === 데이터 수신 및 처리 ===
+Machinery -> DataReceiver: 데이터 수신 (rawData) [UC-004]
+activate DataReceiver
+
+DataReceiver -> DataProcessor: 데이터 처리 (vibrationData)
+activate DataProcessor
+
+' --- 병렬 처리: 데이터 저장 및 분석 ---
+par "데이터 저장 및 분석 (병렬)"
+    ' 1. 원시 데이터 저장
+    DataProcessor -> DataRepository: 원시 데이터 저장 (vibrationData) [UC-005]
+    activate DataRepository
+    DataRepository --> DataProcessor
+    deactivate DataRepository
+    
+    ' 2. 데이터 분석 (통계 & FFT)
+    DataProcessor -> DataProcessor: 시간 통계 값 계산 [UC-006]
+    DataProcessor -> DataProcessor: FFT 스펙트럼 계산 [UC-007]
+end
+
+' --- 처리된 데이터 저장 ---
+DataProcessor -> DataRepository: 처리 데이터 저장 (processedData)
+activate DataRepository
+DataRepository --> DataProcessor
+deactivate DataRepository
+
+' --- 이상 탐지 ---
+DataProcessor -> AnomalyDetector: 이상 탐지 수행 (timeStatistics)
+activate AnomalyDetector
+
+alt "이상 의심 (임계치 초과)" [UC-008]
+    AnomalyDetector -> AnomalyDetector: 알림(Alert) 객체 생성
+    AnomalyDetector -> DataRepository: 알림 이력 기록 (alert) [UC-009]
+    activate DataRepository
+    DataRepository --> AnomalyDetector
+    deactivate DataRepository
+end
+
+deactivate AnomalyDetector
+deactivate DataProcessor
+deactivate DataReceiver
+@enduml

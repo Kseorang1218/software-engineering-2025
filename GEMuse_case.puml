@@ -1,0 +1,60 @@
+@startuml
+' 한글 표시를 위해 폰트 설정 (환경에 따라 알맞은 폰트 지정)
+skinparam defaultFontName Malgun Gothic
+
+title 실시간 진동 데이터 웹 모니터링 시스템 유스케이스 다이어그램
+
+left to right direction
+
+' --- 액터 정의 ---
+actor 작업자 as Operator
+actor 회전기계 as Machine
+
+' --- 시스템 경계 및 유스케이스 정의 ---
+rectangle "실시간 진동 데이터 웹 모니터링 시스템" as System {
+
+ ' 작업자 관련 유스케이스
+ usecase (실시간 데이터 모니터링) as (UC1_Monitor)
+ usecase (과거 데이터 조회) as (UC2_Query)
+ usecase (데이터 다운로드) as (UC3_Download)
+
+ ' 회전기계 관련 유스케이스
+ usecase (진동 데이터 수신) as (UC4_Send)
+
+ ' 내부 데이터 처리 유스케이스 (UC4에 의해 트리거됨)
+ usecase (데이터베이스에 데이터 저장) as (UC5_Store)
+ usecase (시간 통계 값 계산) as (UC6_CalcStats)
+ usecase (FFT 스펙트럼 계산) as (UC7_CalcFFT)
+
+' 알림 관련 유스케이스 (UC6에 의해 트리거됨)
+ usecase (이상 의심 알림) as (UC8_Alert)
+ usecase (알림 이력 기록) as (UC9_LogAlert)
+}
+
+' --- 액터와 유스케이스 관계 ---
+Operator -- (UC1_Monitor)
+Operator -- (UC2_Query)
+Operator -- (UC3_Download)
+
+Machine -- (UC4_Send)
+
+' --- 유스케이스 간 관계 (Include / Extend) ---
+
+' 1. 데이터 전송(UC4)은 저장(UC5), 통계 계산(UC6), FFT 계산(UC7)을 반드시 포함함
+(UC4_Send) ..> (UC5_Store) : <<include>>
+(UC4_Send) ..> (UC6_CalcStats) : <<include>>
+(UC4_Send) ..> (UC7_CalcFFT) : <<include>>
+
+' 2. 통계 값 계산(UC6) 중 임계치를 초과하면(extend) 알림(UC8)이 발생함 (FR007)
+(UC8_Alert) .left.> (UC6_CalcStats) : <<extend>>
+
+' 3. 이상 의심 알림(UC8)은 반드시 알림 이력 기록(UC9)을 포함함 (FR008)
+(UC8_Alert) ..> (UC9_LogAlert) : <<include>>
+
+' 4. 데이터 다운로드(UC3)는 과거 데이터 조회(UC2) 중 선택적으로 발생함 (FR009)
+(UC3_Download) .up.> (UC2_Query) : <<extend>>
+
+' 5. (UC1)모니터링과 (UC2)조회는 계산된 결과를 가져와 보여주는 역할
+'    (별도 관계 설정 불필요)
+
+@enduml

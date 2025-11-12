@@ -1,0 +1,4 @@
+# Node.js 라이브러리 환경
+node_modules/
+# 진동 데이터 검증을 위한 파이썬 환경
+checkdata/

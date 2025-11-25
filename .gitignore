@@ -2,3 +2,6 @@
 node_modules/
 # 진동 데이터 검증을 위한 파이썬 환경
 checkdata/
+
+# 데이터 파일들
+raw_files/

@@ -157,7 +157,8 @@ def process_data_buffer(buffer_16k, scale_factor, sensor_info, channel_index):
     skewness = scipy.stats.skew(sdata)
 
     # 3. 1kHz로 다운샘플링 (앤티 앨리어싱 필터 포함)
-    data_1k = scipy.signal.decimate(sdata, DOWNSAMPLE_FACTOR)
+    temp_data = scipy.signal.decimate(sdata, 4)
+    data_1k = scipy.signal.decimate(temp_data, 4)
     
     # 4. 서버로 전송할 데이터 패키징 (JSON)
     payload = {

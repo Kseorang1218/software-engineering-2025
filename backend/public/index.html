@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>진동 모니터링 시스템 (GEM Project)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* 상단 헤더 및 상태 패널 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status-card { 
+            background: white; padding: 20px; border-radius: 10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; min-width: 150px;
+        }
+        .status-value { font-size: 24px; font-weight: bold; color: #333; }
+        .status-label { font-size: 14px; color: #666; }
+        
+        /* 상태 표시등 (Normal: Green, Warning: Orange, Critical: Red) */
+        #health-indicator { 
+            color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; 
+            background-color: #28a745; /* 기본 Green */
+        }
+
+        /* 차트 영역 */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .chart-box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        /* 하단 메시지 */
+        .log-box { margin-top: 20px; font-size: 12px; color: #888; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🏭 회전기계 진동 모니터링 시스템</h1>
+        <div id="health-indicator">WAITING...</div>
+    </div>
+
+    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <div class="status-card">
+            <div class="status-label">Sensor ID</div>
+            <div class="status-value" id="val-sensor">-</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">RMS (Energy)</div>
+            <div class="status-value" id="val-rms">0.000</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">Kurtosis (Impact)</div>
+            <div class="status-value" id="val-kurtosis">0.000</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">Skewness</div>
+            <div class="status-value" id="val-skewness">0.000</div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-box">
+            <h3>📉 Time Waveform (Raw Data)</h3>
+            <canvas id="timeChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>📊 Frequency Spectrum (FFT)</h3>
+            <canvas id="fftChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="log-box" id="last-update">Last Update: -</div>
+</div>
+
+<script>
+    // 1. 소켓 연결
+    const socket = io();
+
+    // 2. 차트 초기화 (Chart.js)
+    const ctxTime = document.getElementById('timeChart').getContext('2d');
+    const ctxFFT = document.getElementById('fftChart').getContext('2d');
+
+    // 시간 영역 차트 (Waveform)
+    const timeChart = new Chart(ctxTime, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 1000}, (_, i) => i), // X축: 0 ~ 999
+            datasets: [{
+                label: 'Amplitude (g)',
+                data: [],
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                pointRadius: 0 // 점 없애기 (성능 최적화)
+            }]
+        },
+        options: {
+            animation: false, // 실시간 성능 위해 애니메이션 끄기
+            scales: { y: { min: -2, max: 2 } } // Y축 고정 (필요시 조정)
+        }
+    });
+
+    // 주파수 영역 차트 (FFT)
+// 주파수 영역 차트 (FFT) - 수정된 버전
+    const fftChart = new Chart(ctxFFT, {
+        type: 'line', // ‼️ [변경 1] 막대(bar) -> 선(line)으로 변경
+        data: {
+            datasets: [{
+                label: 'Magnitude',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)', // 선 색상 (진한 분홍)
+                backgroundColor: 'rgba(255, 99, 132, 0.2)', // 채우기 색상 (연한 분홍)
+                borderWidth: 1.5, // 선 두께
+                pointRadius: 0,   // ‼️ [변경 2] 점(Point) 제거 (그래프가 매끄러워짐)
+                fill: true,       // 아래 영역 채우기 (원하면 false로 설정하여 선만 표시)
+                tension: 0.1      // ‼️ [변경 3] 선을 약간 부드럽게 (0이면 직선 연결)
+            }]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'linear', // ‼️ [변경 4] X축을 선형 숫자로 처리
+                    position: 'bottom',
+                    title: { display: true, text: 'Frequency (Hz)' },
+                    min: 0,
+                    max: 500 // 1kHz 샘플링이면 500Hz까지만 유효 (Nyquist)
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Magnitude' }
+                }
+            }
+        }
+    });
+
+    // 3. 데이터 수신 및 화면 갱신 (Socket Event)
+    socket.on('sensor-update', (data) => {
+        // (1) 텍스트 값 업데이트
+        document.getElementById('val-sensor').innerText = data.sensor_id;
+        document.getElementById('val-rms').innerText = data.rms.toFixed(4);
+        document.getElementById('val-kurtosis').innerText = data.kurtosis.toFixed(4);
+        document.getElementById('val-skewness').innerText = data.skewness.toFixed(4);
+        document.getElementById('last-update').innerText = `Last Update: ${data.timestamp} | ${data.health_details}`;
+
+        // (2) 상태 표시등 색상 변경
+        const indicator = document.getElementById('health-indicator');
+        indicator.innerText = data.health_status;
+        if (data.health_status === 'NORMAL') indicator.style.backgroundColor = '#28a745'; // 녹색
+        else if (data.health_status === 'WARNING') indicator.style.backgroundColor = '#ffc107'; // 노란색
+        else indicator.style.backgroundColor = '#dc3545'; // 빨간색
+
+        // (3) 시간 차트 업데이트
+        timeChart.data.datasets[0].data = data.raw_data;
+        timeChart.update();
+
+        // (4) FFT 차트 업데이트
+        // 데이터가 많으면 성능 저하되므로 주요 대역만 표시하거나 그대로 표시
+        // data.fft_data는 [{x: 주파수, y: 크기}, ...] 형태
+        fftChart.data.datasets[0].data = data.fft_data;
+        fftChart.update();
+    });
+</script>
+
+</body>
+</html>

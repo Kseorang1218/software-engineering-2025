@@ -4,7 +4,8 @@
   "description": "2025 소공 프로젝트 진동 분석 백엔드",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
@@ -13,5 +14,8 @@
     "nodemailer": "^7.0.11",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0"
   }
 }

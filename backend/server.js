@@ -138,6 +138,24 @@ app.post('/api/vibration_data', (req, res) => {
         res.status(500).json({ error: "Server Error" });
     }
 });
+// [추가] 임계치 설정 변경 API
+app.post('/api/config/thresholds', (req, res) => {
+    const { rms_warning, rms_critical, kurt_warning, kurt_critical } = req.body;
+
+    // 서버의 설정값 업데이트
+    if (rms_warning) CONFIG.THRESHOLDS.RMS.WARNING = parseFloat(rms_warning);
+    if (rms_critical) CONFIG.THRESHOLDS.RMS.CRITICAL = parseFloat(rms_critical);
+    if (kurt_warning) CONFIG.THRESHOLDS.KURTOSIS.WARNING = parseFloat(kurt_warning);
+    if (kurt_critical) CONFIG.THRESHOLDS.KURTOSIS.CRITICAL = parseFloat(kurt_critical);
+
+    console.log('⚙️ 임계치 설정 변경됨:', CONFIG.THRESHOLDS);
+    res.json({ message: "Thresholds updated", currentConfig: CONFIG.THRESHOLDS });
+});
+
+// [추가] 현재 설정값 조회 API (팝업 띄울 때 사용)
+app.get('/api/config/thresholds', (req, res) => {
+    res.json(CONFIG.THRESHOLDS);
+});
 
 // [추가] 과거 데이터 조회 API (UC-002)
 app.get('/api/history', (req, res) => {

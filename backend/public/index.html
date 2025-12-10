@@ -36,7 +36,8 @@
         .header h1 { font-size: 24px; font-weight: 600; color: #2c3e50; margin: 0; display: flex; align-items: center; }
         .header h1 i { margin-right: 10px; color: #6c5ce7; }
         .header-info { display: flex; align-items: center; gap: 20px; color: var(--text-secondary); font-size: 14px; }
-        .header-icons i { margin-left: 15px; cursor: pointer; }
+        .header-icons i { margin-left: 15px; cursor: pointer; transition: color 0.2s; }
+        .header-icons i:hover { color: var(--primary-btn); }
 
         /* ---- Card Components ---- */
         .card {
@@ -68,52 +69,33 @@
         .status-warning { color: var(--warning); }
         .status-critical { color: var(--danger); }
 
-        /* 기존 .btn-group 스타일 유지하되, 버튼 스타일 약간 보강 */
-        .btn-group { 
-            display: flex; 
-            gap: 8px; /* 간격 살짝 조정 */
-            justify-content: flex-end; 
-            margin-top: auto; 
-        }
+        /* 버튼 스타일 */
+        .btn-group { display: flex; gap: 8px; justify-content: flex-end; margin-top: auto; }
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-outline { background-color: transparent; border: 1px solid #ced4da; color: #495057; }
+        .btn-outline:hover { background-color: #e9ecef; border-color: #adb5bd; }
+        .btn-primary { background-color: var(--primary-btn); color: white; }
+        .btn-primary:hover { background-color: #1a68d1; }
 
-        .btn { 
-            padding: 8px 12px; /* 패딩 조정 */
-            border: none; 
-            border-radius: 4px; 
-            font-size: 13px; /* 글자 크기 살짝 줄여서 3개가 한 줄에 잘 들어가도록 */
-            font-weight: 500; 
-            cursor: pointer; 
-            transition: all 0.2s ease; /* 부드러운 전환 효과 */
-            display: flex;
-            align-items: center;
-            gap: 6px; /* 아이콘과 텍스트 사이 간격 */
+        /* ‼️ [추가] 모달 팝업 스타일 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
         }
-
-        /* 버튼 호버 시 살짝 위로 떠오르는 효과 */
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .modal-content {
+            background: white; padding: 25px; border-radius: 8px;
+            width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
-
-        .btn-outline { 
-            background-color: transparent; 
-            border: 1px solid #ced4da; /* 테두리 색상을 조금 더 연하게 */
-            color: #495057; 
-        }
-
-        .btn-outline:hover {
-            background-color: #e9ecef;
-            border-color: #adb5bd;
-        }
-
-        .btn-primary { 
-            background-color: var(--primary-btn); 
-            color: white; 
-        }
-
-        .btn-primary:hover { 
-            background-color: #1a68d1; 
-        }
+        .modal-content h3 { margin-top: 0; color: #333; display: flex; align-items: center; gap: 10px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 14px; margin-bottom: 5px; color: #555; font-weight: 600; }
+        .input-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .input-group input:focus { border-color: var(--primary-btn); outline: none; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
     </style>
 </head>
 <body>
@@ -121,11 +103,11 @@
     <div class="header">
         <h1><i class="fas fa-cog fa-spin"></i> 회전기계 진동 모니터링 웹페이지</h1>
         <div class="header-info">
-            <span id="current-time">2025-11-26 14:30:00</span>
+            <span id="current-time">Loading...</span>
             <div class="header-icons">
-                <i class="fas fa-user"></i>
-                <i class="fas fa-bell"></i>
-                <i class="fas fa-cog"></i>
+                <i class="fas fa-bell" title="알림 (Notification)"></i>
+                
+                <i class="fas fa-cog" onclick="openSettings()" title="임계치 설정 변경"></i>
             </div>
         </div>
     </div>
@@ -181,6 +163,36 @@
 
     </div>
 
+    <div id="settingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3><i class="fas fa-sliders-h"></i> 임계치 설정</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 20px;">알림이 발생하는 기준값을 변경합니다.</p>
+            
+            <div class="input-group">
+                <label>RMS Warning (주의):</label>
+                <input type="number" step="0.01" id="input-rms-warning">
+            </div>
+            <div class="input-group">
+                <label>RMS Critical (위험):</label>
+                <input type="number" step="0.01" id="input-rms-critical">
+            </div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <div class="input-group">
+                <label>Kurtosis Warning (주의):</label>
+                <input type="number" step="0.1" id="input-kurt-warning">
+            </div>
+            <div class="input-group">
+                <label>Kurtosis Critical (위험):</label>
+                <input type="number" step="0.1" id="input-kurt-critical">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeSettings()">취소</button>
+                <button class="btn btn-primary" onclick="saveSettings()">저장 및 적용</button>
+            </div>
+        </div>
+    </div>
+
 
 <script>
     // 0. 유틸리티 함수 (현재 시간 표시용)
@@ -197,7 +209,6 @@
     const ctxTime = document.getElementById('timeChart').getContext('2d');
     const ctxFFT = document.getElementById('fftChart').getContext('2d');
 
-    // (시간 차트 설정 - 기존 동일)
     const timeChart = new Chart(ctxTime, {
         type: 'line',
         data: {
@@ -211,7 +222,6 @@
         }
     });
 
-    // (FFT 차트 설정 - 기존 동일)
     const fftChart = new Chart(ctxFFT, {
         type: 'line',
         data: {
@@ -233,11 +243,9 @@
     const notificationLog = document.getElementById('notification-log');
 
     socket.on('sensor-update', (data) => {
-        // (1) 헤더 정보 업데이트
         document.getElementById('sensor-id-time').innerText = data.sensor_id;
         document.getElementById('sensor-id-fft').innerText = data.sensor_id;
 
-        // (2) Data Summary 패널 업데이트
         updateSummaryValue('rms', data.rms, data.health_status);
         updateSummaryValue('kurtosis', data.kurtosis, data.health_status);
         document.getElementById('val-skewness').innerText = data.skewness.toFixed(3);
@@ -246,12 +254,10 @@
         healthElem.innerText = data.health_status;
         healthElem.className = `summary-value status-${data.health_status.toLowerCase()}`;
 
-        // (3) 알림 패널 업데이트 (Warning/Critical일 때만 로그 추가)
         if (data.health_status !== 'NORMAL') {
             addNotification(data.sensor_id, data.health_status, data.health_details);
         }
 
-        // (4) 차트 업데이트
         timeChart.data.datasets[0].data = data.raw_data;
         timeChart.update();
         fftChart.data.datasets[0].data = data.fft_data;
@@ -259,12 +265,9 @@
     });
 
     // --- 헬퍼 함수들 ---
-
-    // 요약 패널 수치 및 상태 태그 업데이트
     function updateSummaryValue(type, value, overallStatus) {
         document.getElementById(`val-${type}`).innerText = value.toFixed(3);
         const statusTag = document.getElementById(`status-${type}`);
-        // (간단한 예시 로직: 전체 상태가 나쁘면 (High) 태그를 붙임. 실제로는 각 수치별 임계값 비교 필요)
         if (overallStatus !== 'NORMAL') {
             statusTag.innerText = '(High)';
             statusTag.className = 'status-tag status-critical';
@@ -274,9 +277,7 @@
         }
     }
 
-    // 알림 로그 추가 함수
     function addNotification(sensorId, status, details) {
-        // 첫 대기 메시지 삭제
         if (notificationLog.children[0] && notificationLog.children[0].style.fontStyle === 'italic') {
             notificationLog.innerHTML = '';
         }
@@ -290,7 +291,59 @@
                 <div class="notification-time">(${time})</div>
             </div>
         `;
-        notificationLog.insertBefore(li, notificationLog.firstChild); // 최신순으로 상단 추가
+        notificationLog.insertBefore(li, notificationLog.firstChild);
+    }
+
+    // ‼️ [추가] 설정 팝업 관련 함수들
+    async function openSettings() {
+        try {
+            // 현재 설정값 서버에서 가져오기
+            const res = await fetch('/api/config/thresholds');
+            if (!res.ok) throw new Error('API Error');
+            const config = await res.json();
+            
+            // 입력창에 값 채우기
+            document.getElementById('input-rms-warning').value = config.RMS.WARNING;
+            document.getElementById('input-rms-critical').value = config.RMS.CRITICAL;
+            document.getElementById('input-kurt-warning').value = config.KURTOSIS.WARNING;
+            document.getElementById('input-kurt-critical').value = config.KURTOSIS.CRITICAL;
+
+            document.getElementById('settingsModal').style.display = 'flex';
+        } catch (err) {
+            console.error(err);
+            alert('설정 정보를 가져오는데 실패했습니다. 서버가 켜져있는지 확인해주세요.');
+        }
+    }
+
+    function closeSettings() {
+        document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    async function saveSettings() {
+        const data = {
+            rms_warning: document.getElementById('input-rms-warning').value,
+            rms_critical: document.getElementById('input-rms-critical').value,
+            kurt_warning: document.getElementById('input-kurt-warning').value,
+            kurt_critical: document.getElementById('input-kurt-critical').value
+        };
+
+        try {
+            const res = await fetch('/api/config/thresholds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (res.ok) {
+                alert('✅ 임계치 설정이 변경되었습니다.');
+                closeSettings();
+            } else {
+                alert('설정 변경 실패');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('서버 통신 오류');
+        }
     }
 </script>
 

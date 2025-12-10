@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>과거 이력 조회 - 진동 모니터링 시스템</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .controls { margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #333; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .status-CRITICAL { color: red; font-weight: bold; }
+        .status-WARNING { color: orange; font-weight: bold; }
+        .status-NORMAL { color: green; }
+    </style>
+</head>
+<body>
+
+    <h1>📅 과거 데이터 이력 조회</h1>
+
+    <div class="controls">
+        <label>시작일시: <input type="datetime-local" id="startDate"></label> ~ 
+        <label>종료일시: <input type="datetime-local" id="endDate"></label>
+        
+        <button onclick="searchHistory()" style="padding: 5px 15px; cursor: pointer;">🔍 조회하기</button>
+        
+        <button onclick="downloadRange()" style="padding: 5px 15px; cursor: pointer; background-color: #28a745; color: white; border: none; margin-left: 10px;">
+            📥 조회 기간 전체 다운로드 (CSV)
+        </button>
+</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>시간 (Timestamp)</th>
+                <th>센서 ID</th>
+                <th>RMS</th>
+                <th>Kurtosis</th>
+                <th>상태</th>
+                <th>다운로드</th> </tr>
+        </thead>
+        <tbody id="resultTableBody">
+            <tr><td colspan="7">기간을 선택하고 조회를 눌러주세요.</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        async function searchHistory() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if (!start || !end) {
+                alert("시작일시와 종료일시를 모두 선택해주세요.");
+                return;
+            }
+
+            try {
+                // 서버 API 호출
+                const response = await fetch(`/api/history?start=${start}&end=${end}`);
+                const data = await response.json();
+
+                const tbody = document.getElementById('resultTableBody');
+                tbody.innerHTML = ''; // 기존 내용 지우기
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7">해당 기간의 데이터가 없습니다.</td></tr>';
+                    return;
+                }
+
+                // 데이터 테이블에 렌더링
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    
+                    // RMS, Kurtosis 등 소수점 정리
+                    const rms = row.rms ? row.rms.toFixed(4) : '0.0000';
+                    const kurt = row.kurtosis ? row.kurtosis.toFixed(4) : '0.0000';
+
+                    tr.innerHTML = `
+                        <td>${row.id}</td>
+                        <td>${row.timestamp}</td>
+                        <td>${row.sensor_id}</td>
+                        <td>${rms}</td>
+                        <td>${kurt}</td>
+                        <td class="status-${row.health_status}">${row.health_status}</td>
+                        <td>
+                            <button onclick="location.href='/api/download/csv/${row.id}'" 
+                                    style="cursor: pointer; background-color: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px;">
+                                <i class="fas fa-download"></i> CSV 저장
+                            </button>
+                        </td> 
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert("조회 중 오류가 발생했습니다.");
+            }
+        }
+
+    function downloadRange() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+
+        if (!start || !end) {
+            alert("다운로드할 기간(시작일/종료일)을 먼저 선택해주세요.");
+            return;
+        }
+
+        // 사용자에게 확인 (데이터가 많으면 오래 걸릴 수 있으므로)
+        if (!confirm(`${start} 부터 ${end} 까지의 모든 데이터를 하나의 CSV로 다운로드하시겠습니까?\n(데이터 양에 따라 시간이 소요될 수 있습니다.)`)) {
+            return;
+        }
+
+        // 서버의 일괄 다운로드 API 호출 (새 창이나 현재 창 이동으로 트리거)
+        const url = `/api/download/period?start=${start}&end=${end}`;
+        window.location.href = url; 
+    }
+    </script>
+</body>
+</html>

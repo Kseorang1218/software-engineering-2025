@@ -7,8 +7,10 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "fft.js": "^4.0.4",
+    "nodemailer": "^7.0.11",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7"
   }

@@ -89,4 +89,38 @@ router.get('/history', (req, res) => {
     db.all(sql, [start, end], (err, rows) => { err ? res.status(500).json({error: "DB Error"}) : res.json(rows); });
 });
 
-module.exports = router;
+router.get('/download/period', async (req, res) => { // ⚠️ app -> router로 변경
+    const { start, end } = req.query;
+    
+    if (!start || !end) return res.status(400).send("시작/종료일 필요");
+    
+    const sql = `SELECT * FROM sensor_measurements WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC`; 
+    
+    db.all(sql, [start, end], async (err, rows) => {
+        if (err || rows.length === 0) return res.status(404).send("No data");
+        
+        let csvContent = "Timestamp,Sensor_ID,Status,RMS,Kurtosis,Raw_Value\n";
+        
+        try {
+            for (const row of rows) {
+                // ⚠️ 중요: 변수명을 위 설정에 맞춰 CONFIG.PATHS.RAW_DATA로 수정했습니다.
+                const filePath = path.join(CONFIG.PATHS.RAW_DATA, row.raw_data_filename);
+                
+                if (fs.existsSync(filePath)) {
+                    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+                    JSON.parse(fileContent).forEach(val => {
+                        csvContent += `${row.timestamp},${row.sensor_id},${row.health_status},${row.rms},${row.kurtosis},${val}\n`;
+                    });
+                }
+            }
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="Export_${start}_to_${end}.csv"`);
+            res.send(csvContent);
+        } catch (e) { 
+            console.error(e);
+            res.status(500).send("Error"); 
+        }
+    });
+});
+
+module.exports = router; // ‼️ 이 줄이 반드시 파일의 맨 마지막에 있어야 합니다.

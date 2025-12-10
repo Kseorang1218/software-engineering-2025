@@ -68,12 +68,52 @@
         .status-warning { color: var(--warning); }
         .status-critical { color: var(--danger); }
 
-        .btn-group { display: flex; gap: 10px; justify-content: flex-end; margin-top: auto; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-        .btn-primary { background-color: var(--primary-btn); color: white; }
-        .btn-primary:hover { background-color: #1a68d1; }
-        .btn-outline { background-color: transparent; border: 1px solid var(--primary-btn); color: var(--primary-btn); }
+        /* 기존 .btn-group 스타일 유지하되, 버튼 스타일 약간 보강 */
+        .btn-group { 
+            display: flex; 
+            gap: 8px; /* 간격 살짝 조정 */
+            justify-content: flex-end; 
+            margin-top: auto; 
+        }
 
+        .btn { 
+            padding: 8px 12px; /* 패딩 조정 */
+            border: none; 
+            border-radius: 4px; 
+            font-size: 13px; /* 글자 크기 살짝 줄여서 3개가 한 줄에 잘 들어가도록 */
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: all 0.2s ease; /* 부드러운 전환 효과 */
+            display: flex;
+            align-items: center;
+            gap: 6px; /* 아이콘과 텍스트 사이 간격 */
+        }
+
+        /* 버튼 호버 시 살짝 위로 떠오르는 효과 */
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-outline { 
+            background-color: transparent; 
+            border: 1px solid #ced4da; /* 테두리 색상을 조금 더 연하게 */
+            color: #495057; 
+        }
+
+        .btn-outline:hover {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .btn-primary { 
+            background-color: var(--primary-btn); 
+            color: white; 
+        }
+
+        .btn-primary:hover { 
+            background-color: #1a68d1; 
+        }
     </style>
 </head>
 <body>
@@ -129,8 +169,13 @@
                 <div class="summary-value" style="margin-top:10px; font-weight:bold;" id="overall-health">-</div>
             </div>
             <div class="btn-group">
-                <button class="btn btn-outline">Export Data</button>
-                <button class="btn btn-primary">Refresh Data</button>
+                <button class="btn btn-outline" onclick="window.open('/history.html', '_blank')">
+                    <i class="fas fa-history"></i> History
+                </button>
+                
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
             </div>
         </div>
 

@@ -139,6 +139,83 @@ app.post('/api/vibration_data', (req, res) => {
     }
 });
 
+// [추가] 과거 데이터 조회 API (UC-002)
+app.get('/api/history', (req, res) => {
+    // 쿼리 파라미터로 시작일과 종료일을 받음 (예: ?start=2023-10-01&end=2023-10-02)
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+        return res.status(400).json({ error: "검색할 날짜 범위(start, end)가 필요합니다." });
+    }
+
+    // SQLite에서 문자열 비교를 통해 날짜 범위 검색
+    // timestamp 컬럼이 'YYYY-MM-DDTHH:mm:ss...' 형식의 문자열로 저장되어 있다고 가정
+    const sql = `
+        SELECT id, timestamp, sensor_id, rms, kurtosis, health_status, raw_data_filename 
+        FROM sensor_measurements 
+        WHERE timestamp >= ? AND timestamp <= ? 
+        ORDER BY timestamp DESC
+    `;
+
+    db.all(sql, [start, end], (err, rows) => {
+        if (err) {
+            console.error(err);
+            res.status(500).json({ error: "데이터베이스 조회 중 오류가 발생했습니다." });
+        } else {
+            res.json(rows); // 조회된 데이터를 JSON 배열로 응답
+        }
+    });
+});
+
+// [추가] CSV 다운로드 처리 API (UC-003)
+app.get('/api/download/csv/:id', (req, res) => {
+    const id = req.params.id;
+
+    // 1. DB에서 해당 ID의 메타데이터(통계값, 파일명 등) 조회
+    db.get(`SELECT * FROM sensor_measurements WHERE id = ?`, [id], (err, row) => {
+        if (err || !row) {
+            return res.status(404).send("데이터를 찾을 수 없습니다.");
+        }
+
+        // 2. 서버 로컬 폴더에서 원시 데이터 파일(JSON) 읽기
+        const filePath = path.join(RAW_DATA_DIR, row.raw_data_filename);
+        
+        fs.readFile(filePath, 'utf8', (fileErr, fileContent) => {
+            if (fileErr) {
+                console.error("파일 읽기 실패:", fileErr);
+                return res.status(500).send("원본 데이터 파일이 손실되었습니다.");
+            }
+
+            try {
+                // 3. 파일 내용(JSON 배열) 파싱
+                const rawData = JSON.parse(fileContent); 
+
+                // 4. CSV 내용 생성 (헤더 + 데이터)
+                // 요구사항: 원시 데이터뿐만 아니라 RMS, Kurtosis도 포함
+                let csvContent = "Time_Index,Raw_Value,RMS,Kurtosis,Timestamp\n";
+
+                rawData.forEach((value, index) => {
+                    // 각 행마다 통계값을 반복해서 넣어줍니다 (분석 시 편리함)
+                    csvContent += `${index},${value},${row.rms},${row.kurtosis},${row.timestamp}\n`;
+                });
+
+                // 5. 브라우저가 파일을 다운로드하도록 응답 헤더 설정
+                // 파일명 예시: sensor1_2025-11-26-14-30-00.csv
+                const downloadFileName = `${row.sensor_id}_${row.timestamp.replace(/[:.]/g, '-')}.csv`;
+                
+                res.setHeader('Content-Type', 'text/csv');
+                res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+                res.send(csvContent);
+
+            } catch (parseErr) {
+                console.error("JSON 파싱 에러:", parseErr);
+                res.status(500).send("데이터 변환 중 오류가 발생했습니다.");
+            }
+        });
+    });
+});
+
+
 // ‼️ server.listen 사용 (app.listen 아님)
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server Running: http://localhost:${PORT}`);

@@ -215,6 +215,59 @@ app.get('/api/download/csv/:id', (req, res) => {
     });
 });
 
+// [추가] 기간별 데이터 일괄 다운로드 API (Bulk Export)
+// [수정] 기간별 데이터 일괄 다운로드 API (Status 포함 버전)
+app.get('/api/download/period', async (req, res) => {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+        return res.status(400).send("시작일과 종료일이 필요합니다.");
+    }
+
+    // 1. 해당 기간의 DB 데이터 조회 (SELECT * 이므로 health_status도 이미 가져옵니다)
+    const sql = `SELECT * FROM sensor_measurements 
+                 WHERE timestamp >= ? AND timestamp <= ? 
+                 ORDER BY timestamp ASC`; 
+
+    db.all(sql, [start, end], async (err, rows) => {
+        if (err) {
+            return res.status(500).send("DB 조회 오류");
+        }
+        if (rows.length === 0) {
+            return res.status(404).send("해당 기간에 데이터가 없습니다.");
+        }
+
+        // 2. CSV 헤더 생성 (‼️ Status 컬럼 추가됨)
+        let csvContent = "Timestamp,Sensor_ID,Status,RMS,Kurtosis,Raw_Value\n";
+
+        try {
+            for (const row of rows) {
+                const filePath = path.join(RAW_DATA_DIR, row.raw_data_filename);
+                
+                if (fs.existsSync(filePath)) {
+                    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+                    const rawData = JSON.parse(fileContent);
+
+                    // 3. 데이터 병합
+                    rawData.forEach((val) => {
+                        // ‼️ 한 줄에 health_status 추가
+                        csvContent += `${row.timestamp},${row.sensor_id},${row.health_status},${row.rms},${row.kurtosis},${val}\n`;
+                    });
+                }
+            }
+
+            // 4. 파일 다운로드 제공
+            const fileName = `Export_${start}_to_${end}.csv`.replace(/[: ]/g, '-');
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.send(csvContent);
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).send("데이터 병합 중 오류가 발생했습니다.");
+        }
+    });
+});
 
 // ‼️ server.listen 사용 (app.listen 아님)
 server.listen(PORT, '0.0.0.0', () => {

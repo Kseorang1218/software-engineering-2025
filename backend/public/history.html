@@ -48,6 +48,26 @@
     </table>
 
     <script>
+    // 페이지 로드 시 현재 시간 기준 기본값 설정
+    window.onload = function() {
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+
+        const now = new Date();
+        const past = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // 어제 날짜
+
+        // datetime-local input은 'YYYY-MM-DDTHH:mm' 형식을 요구함
+        // 시간대 오차(KST)를 고려한 포맷팅 함수
+        const formatDateTime = (date) => {
+            const offset = date.getTimezoneOffset() * 60000;
+            const localISOTime = new Date(date - offset).toISOString().slice(0, 16);
+            return localISOTime;
+        };
+
+        startDateInput.value = formatDateTime(past); // 시작일: 어제
+        endDateInput.value = formatDateTime(now);    // 종료일: 현재
+    };
+
         async function searchHistory() {
             const start = document.getElementById('startDate').value;
             const end = document.getElementById('endDate').value;

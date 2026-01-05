@@ -11,8 +11,8 @@
 
 ### 게이트웨이
 * **OS**: Window 11
-* **Language**: Python 3.8+
-* **Dependencies**: (예: `pip install pyserial numpy`)
+* **Language**: Python 3.11.9
+* **Dependencies**: `pip install -r collect_data/requirements.txt`
 
 
 ---
